@@ -26,7 +26,7 @@ class Damdfe extends DaCommon
     protected $yDados = 0;
     protected $xml; // string XML NFe
     protected $errMsg = ''; // mesagens de erro
-    protected $errStatus = false;// status de erro TRUE um erro ocorreu false sem erros
+    protected $errStatus = false; // status de erro TRUE um erro ocorreu false sem erros
     protected $formatoChave = "#### #### #### #### #### #### #### #### #### #### ####";
     protected $margemInterna = 2;
     protected $id;
@@ -47,6 +47,49 @@ class Damdfe extends DaCommon
      * @var string
      */
     protected $logoAlign = 'L';
+
+    protected $infMDFe;
+    protected $emit;
+    protected $CNPJ;
+    protected $IE;
+    protected $xNome;
+    protected $renderEmit;
+    protected $xLgr;
+    protected $rodo;
+    protected $aereo;
+    protected $aquav;
+    protected $ferrov;
+    protected $RNTRC;
+    protected $ciot;
+    protected $veicTracao;
+    protected $veicReboque;
+    protected $valePed;
+    protected $infCpl;
+    protected $dhRecbto;
+    protected $condutor;
+    protected $infModal;
+    protected $enderEmit;
+    protected $nro;
+    protected $xBairro;
+    protected $UF;
+    protected $xMun;
+    protected $CEP;
+    protected $mod;
+    protected $serie;
+    protected $dhEmi;
+    protected $UFIni;
+    protected $UFFim;
+    protected $nMDF;
+    protected $tot;
+    protected $qMDFe;
+    protected $qNFe;
+    protected $qNF;
+    protected $qCTe;
+    protected $qCT;
+    protected $qCarga;
+    protected $cUnid;
+
+
     private $dom;
 
     /**
@@ -203,7 +246,7 @@ class Damdfe extends DaCommon
                 $maxH = 210;
                 $maxW = 297;
             }
-        }//orientação
+        } //orientação
         //largura imprimivel em mm
         $this->wPrint = $maxW - ($margEsq + $xInic);
         //comprimento imprimivel em mm
@@ -313,8 +356,8 @@ class Damdfe extends DaCommon
             $cpfcnpj = 'CNPJ: ' . $this->formatField($this->CNPJ, "###.###.###/####-##");
         }
         $ie = 'IE: ' . (strlen($this->IE) == 9
-                ? $this->formatField($this->IE, '###/#######')
-                : $this->formatField($this->IE, '###.###.###.###'));
+            ? $this->formatField($this->IE, '###/#######')
+            : $this->formatField($this->IE, '###.###.###.###'));
         $rntrc = empty($this->RNTRC) ? '' : ' - RNTRC: ' . $this->RNTRC;
         $lgr = 'Logradouro: ' . $this->xLgr;
         $nro = 'Nº: ' . $this->nro;
@@ -406,7 +449,8 @@ class Damdfe extends DaCommon
             $retEvento = $this->mdfeProc->getElementsByTagName('retEventoMDFe')->item(0);
             $cStat = $this->getTagValue($this->mdfeProc, "cStat");
             $tpEvento = $this->getTagValue($this->mdfeProc, "tpEvento");
-            if ($cStat == '101'
+            if (
+                $cStat == '101'
                 || $cStat == '151'
                 || $cStat == '135'
                 || $cStat == '155'
@@ -415,7 +459,8 @@ class Damdfe extends DaCommon
                 $resp['status'] = false;
                 $resp['valida'] = false;
                 $resp['message'][] = "MDFe CANCELADA";
-            } elseif (($cStat == '103'
+            } elseif (
+                ($cStat == '103'
                     || $cStat == '136'
                     || $cStat == '135'
                     || $cStat == '155'
@@ -430,12 +475,14 @@ class Damdfe extends DaCommon
                 $tpEvento = $this->getTagValue($infEvento, "tpEvento");
                 $dhEvento = date("d/m/Y H:i:s", $this->toTimestamp($this->getTagValue($infEvento, "dhRegEvento")));
                 $nProt = $this->getTagValue($infEvento, "nProt");
-                if ($tpEvento == '110111'
+                if (
+                    $tpEvento == '110111'
                     && ($cStat == '101'
                         || $cStat == '151'
                         || $cStat == '135'
                         || $cStat == '155'
-                    )) {
+                    )
+                ) {
                     $resp['status'] = false;
                     $resp['valida'] = false;
                     $resp['message'][] = "MDFe CANCELADA";
@@ -531,8 +578,8 @@ class Damdfe extends DaCommon
             $cpfcnpj = 'CNPJ: ' . $this->formatField($this->CNPJ, "###.###.###/####-##");
         }
         $ie = 'IE: ' . (strlen($this->IE) == 9
-                ? $this->formatField($this->IE, '###/#######')
-                : $this->formatField($this->IE, '###.###.###.###'));
+            ? $this->formatField($this->IE, '###/#######')
+            : $this->formatField($this->IE, '###.###.###.###'));
         $rntrc = empty($this->RNTRC) ? '' : ' - RNTRC: ' . $this->RNTRC;
         $lgr = 'Logradouro: ' . $this->xLgr;
         $nro = 'Nº: ' . $this->nro;
@@ -748,7 +795,8 @@ class Damdfe extends DaCommon
         $x1 += $x2;
         $this->pdf->textBox($x1, $y, $x2, 10, '', $this->baseFont, 'T', 'L', 0, '', 0, 0, 0, 1);
 
-        if ($this->rodo
+        if (
+            $this->rodo
             || $this->aereo
             || $this->ferrov
         ) {

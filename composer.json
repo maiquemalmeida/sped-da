@@ -1,5 +1,5 @@
 {
-    "name": "nfephp-org/sped-da",
+    "name": "maiquemalmeida/sped-da",
     "type": "library",
     "description": "sped-da contêm as classes para criação dos documentos auxiliares referidos no projeto Sped.",
     "keywords": [
@@ -10,7 +10,7 @@
         "Dacte",
         "CCe"
     ],
-    "homepage": "https://github.com/nfephp-org/sped-da",
+    "homepage": "https://github.com/maiquemalmeida/sped-da",
     "license": [
         "LGPL-3.0-or-later+",
         "GPL-3.0-or-later",
