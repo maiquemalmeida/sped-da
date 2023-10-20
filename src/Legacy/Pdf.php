@@ -3,133 +3,156 @@
 namespace NFePHP\DA\Legacy;
 
 use NFePHP\DA\Legacy\FPDF\Fpdf as Fpdf;
+use \ForceUTF8\Encoding;
+
+function make_utf8(string $string)
+{
+    // Test it and see if it is UTF-8 or not
+    $utf8 = \mb_detect_encoding($string, ["UTF-8"], true);
+
+    if ($utf8 !== false) {
+        return $string;
+    }
+
+    // From now on, it is a safe assumption that $string is NOT UTF-8-encoded
+
+    // The detection strictness (i.e. third parameter) is up to you
+    // You may set it to false to return the closest matching encoding
+    $encoding = \mb_detect_encoding($string, mb_detect_order(), true);
+
+    if ($encoding === false) {
+        throw new \RuntimeException("String encoding cannot be detected");
+    }
+
+    return \mb_convert_encoding($string, "UTF-8", $encoding);
+}
 
 class Pdf extends Fpdf
 {
-    private $t128;                                             // tabela de codigos 128
-    private $abcSet="";                                        // conjunto de caracteres legiveis em 128
-    private $aSet="";                                          // grupo A do conjunto de de caracteres legiveis
-    private $bSet="";                                          // grupo B do conjunto de caracteres legiveis
-    private $cSet="";                                          // grupo C do conjunto de caracteres legiveis
-    private $setFrom = ["A" => 0, "B" => 0, "C" => 0];         // converter de
-    private $setTo = ["A" => 0, "B" => 0, "C" => 0];           // converter para
-    private $jStart = ["A"=> 103, "B"=> 104, "C" => 105];      // Caracteres de seleção do grupo 128
-    private $jSwap = ["A" => 101, "B" => 100, "C" => 99];      // Caracteres de troca de grupo
+    private $t128; // tabela de codigos 128
+    private $abcSet = ""; // conjunto de caracteres legiveis em 128
+    private $aSet = ""; // grupo A do conjunto de de caracteres legiveis
+    private $bSet = ""; // grupo B do conjunto de caracteres legiveis
+    private $cSet = ""; // grupo C do conjunto de caracteres legiveis
+    private $setFrom = ["A" => 0, "B" => 0, "C" => 0]; // converter de
+    private $setTo = ["A" => 0, "B" => 0, "C" => 0]; // converter para
+    private $jStart = ["A" => 103, "B" => 104, "C" => 105]; // Caracteres de seleção do grupo 128
+    private $jSwap = ["A" => 101, "B" => 100, "C" => 99]; // Caracteres de troca de grupo
 
     public function __construct($orientation = 'P', $unit = 'mm', $format = 'A4')
     {
         //passar parametros para a classe principal
         parent::__construct($orientation, $unit, $format);
         // composição dos caracteres do barcode 128
-        $this->t128[] = array(2, 1, 2, 2, 2, 2);           //0 : [ ]
-        $this->t128[] = array(2, 2, 2, 1, 2, 2);           //1 : [!]
-        $this->t128[] = array(2, 2, 2, 2, 2, 1);           //2 : ["]
-        $this->t128[] = array(1, 2, 1, 2, 2, 3);           //3 : [#]
-        $this->t128[] = array(1, 2, 1, 3, 2, 2);           //4 : [$]
-        $this->t128[] = array(1, 3, 1, 2, 2, 2);           //5 : [%]
-        $this->t128[] = array(1, 2, 2, 2, 1, 3);           //6 : [&]
-        $this->t128[] = array(1, 2, 2, 3, 1, 2);           //7 : [']
-        $this->t128[] = array(1, 3, 2, 2, 1, 2);           //8 : [(]
-        $this->t128[] = array(2, 2, 1, 2, 1, 3);           //9 : [)]
-        $this->t128[] = array(2, 2, 1, 3, 1, 2);           //10 : [*]
-        $this->t128[] = array(2, 3, 1, 2, 1, 2);           //11 : [+]
-        $this->t128[] = array(1, 1, 2, 2, 3, 2);           //12 : [,]
-        $this->t128[] = array(1, 2, 2, 1, 3, 2);           //13 : [-]
-        $this->t128[] = array(1, 2, 2, 2, 3, 1);           //14 : [.]
-        $this->t128[] = array(1, 1, 3, 2, 2, 2);           //15 : [/]
-        $this->t128[] = array(1, 2, 3, 1, 2, 2);           //16 : [0]
-        $this->t128[] = array(1, 2, 3, 2, 2, 1);           //17 : [1]
-        $this->t128[] = array(2, 2, 3, 2, 1, 1);           //18 : [2]
-        $this->t128[] = array(2, 2, 1, 1, 3, 2);           //19 : [3]
-        $this->t128[] = array(2, 2, 1, 2, 3, 1);           //20 : [4]
-        $this->t128[] = array(2, 1, 3, 2, 1, 2);           //21 : [5]
-        $this->t128[] = array(2, 2, 3, 1, 1, 2);           //22 : [6]
-        $this->t128[] = array(3, 1, 2, 1, 3, 1);           //23 : [7]
-        $this->t128[] = array(3, 1, 1, 2, 2, 2);           //24 : [8]
-        $this->t128[] = array(3, 2, 1, 1, 2, 2);           //25 : [9]
-        $this->t128[] = array(3, 2, 1, 2, 2, 1);           //26 : [:]
-        $this->t128[] = array(3, 1, 2, 2, 1, 2);           //27 : [;]
-        $this->t128[] = array(3, 2, 2, 1, 1, 2);           //28 : [<]
-        $this->t128[] = array(3, 2, 2, 2, 1, 1);           //29 : [=]
-        $this->t128[] = array(2, 1, 2, 1, 2, 3);           //30 : [>]
-        $this->t128[] = array(2, 1, 2, 3, 2, 1);           //31 : [?]
-        $this->t128[] = array(2, 3, 2, 1, 2, 1);           //32 : [@]
-        $this->t128[] = array(1, 1, 1, 3, 2, 3);           //33 : [A]
-        $this->t128[] = array(1, 3, 1, 1, 2, 3);           //34 : [B]
-        $this->t128[] = array(1, 3, 1, 3, 2, 1);           //35 : [C]
-        $this->t128[] = array(1, 1, 2, 3, 1, 3);           //36 : [D]
-        $this->t128[] = array(1, 3, 2, 1, 1, 3);           //37 : [E]
-        $this->t128[] = array(1, 3, 2, 3, 1, 1);           //38 : [F]
-        $this->t128[] = array(2, 1, 1, 3, 1, 3);           //39 : [G]
-        $this->t128[] = array(2, 3, 1, 1, 1, 3);           //40 : [H]
-        $this->t128[] = array(2, 3, 1, 3, 1, 1);           //41 : [I]
-        $this->t128[] = array(1, 1, 2, 1, 3, 3);           //42 : [J]
-        $this->t128[] = array(1, 1, 2, 3, 3, 1);           //43 : [K]
-        $this->t128[] = array(1, 3, 2, 1, 3, 1);           //44 : [L]
-        $this->t128[] = array(1, 1, 3, 1, 2, 3);           //45 : [M]
-        $this->t128[] = array(1, 1, 3, 3, 2, 1);           //46 : [N]
-        $this->t128[] = array(1, 3, 3, 1, 2, 1);           //47 : [O]
-        $this->t128[] = array(3, 1, 3, 1, 2, 1);           //48 : [P]
-        $this->t128[] = array(2, 1, 1, 3, 3, 1);           //49 : [Q]
-        $this->t128[] = array(2, 3, 1, 1, 3, 1);           //50 : [R]
-        $this->t128[] = array(2, 1, 3, 1, 1, 3);           //51 : [S]
-        $this->t128[] = array(2, 1, 3, 3, 1, 1);           //52 : [T]
-        $this->t128[] = array(2, 1, 3, 1, 3, 1);           //53 : [U]
-        $this->t128[] = array(3, 1, 1, 1, 2, 3);           //54 : [V]
-        $this->t128[] = array(3, 1, 1, 3, 2, 1);           //55 : [W]
-        $this->t128[] = array(3, 3, 1, 1, 2, 1);           //56 : [X]
-        $this->t128[] = array(3, 1, 2, 1, 1, 3);           //57 : [Y]
-        $this->t128[] = array(3, 1, 2, 3, 1, 1);           //58 : [Z]
-        $this->t128[] = array(3, 3, 2, 1, 1, 1);           //59 : [[]
-        $this->t128[] = array(3, 1, 4, 1, 1, 1);           //60 : [\]
-        $this->t128[] = array(2, 2, 1, 4, 1, 1);           //61 : []]
-        $this->t128[] = array(4, 3, 1, 1, 1, 1);           //62 : [^]
-        $this->t128[] = array(1, 1, 1, 2, 2, 4);           //63 : [_]
-        $this->t128[] = array(1, 1, 1, 4, 2, 2);           //64 : [`]
-        $this->t128[] = array(1, 2, 1, 1, 2, 4);           //65 : [a]
-        $this->t128[] = array(1, 2, 1, 4, 2, 1);           //66 : [b]
-        $this->t128[] = array(1, 4, 1, 1, 2, 2);           //67 : [c]
-        $this->t128[] = array(1, 4, 1, 2, 2, 1);           //68 : [d]
-        $this->t128[] = array(1, 1, 2, 2, 1, 4);           //69 : [e]
-        $this->t128[] = array(1, 1, 2, 4, 1, 2);           //70 : [f]
-        $this->t128[] = array(1, 2, 2, 1, 1, 4);           //71 : [g]
-        $this->t128[] = array(1, 2, 2, 4, 1, 1);           //72 : [h]
-        $this->t128[] = array(1, 4, 2, 1, 1, 2);           //73 : [i]
-        $this->t128[] = array(1, 4, 2, 2, 1, 1);           //74 : [j]
-        $this->t128[] = array(2, 4, 1, 2, 1, 1);           //75 : [k]
-        $this->t128[] = array(2, 2, 1, 1, 1, 4);           //76 : [l]
-        $this->t128[] = array(4, 1, 3, 1, 1, 1);           //77 : [m]
-        $this->t128[] = array(2, 4, 1, 1, 1, 2);           //78 : [n]
-        $this->t128[] = array(1, 3, 4, 1, 1, 1);           //79 : [o]
-        $this->t128[] = array(1, 1, 1, 2, 4, 2);           //80 : [p]
-        $this->t128[] = array(1, 2, 1, 1, 4, 2);           //81 : [q]
-        $this->t128[] = array(1, 2, 1, 2, 4, 1);           //82 : [r]
-        $this->t128[] = array(1, 1, 4, 2, 1, 2);           //83 : [s]
-        $this->t128[] = array(1, 2, 4, 1, 1, 2);           //84 : [t]
-        $this->t128[] = array(1, 2, 4, 2, 1, 1);           //85 : [u]
-        $this->t128[] = array(4, 1, 1, 2, 1, 2);           //86 : [v]
-        $this->t128[] = array(4, 2, 1, 1, 1, 2);           //87 : [w]
-        $this->t128[] = array(4, 2, 1, 2, 1, 1);           //88 : [x]
-        $this->t128[] = array(2, 1, 2, 1, 4, 1);           //89 : [y]
-        $this->t128[] = array(2, 1, 4, 1, 2, 1);           //90 : [z]
-        $this->t128[] = array(4, 1, 2, 1, 2, 1);           //91 : [{]
-        $this->t128[] = array(1, 1, 1, 1, 4, 3);           //92 : [|]
-        $this->t128[] = array(1, 1, 1, 3, 4, 1);           //93 : [}]
-        $this->t128[] = array(1, 3, 1, 1, 4, 1);           //94 : [~]
-        $this->t128[] = array(1, 1, 4, 1, 1, 3);           //95 : [DEL]
-        $this->t128[] = array(1, 1, 4, 3, 1, 1);           //96 : [FNC3]
-        $this->t128[] = array(4, 1, 1, 1, 1, 3);           //97 : [FNC2]
-        $this->t128[] = array(4, 1, 1, 3, 1, 1);           //98 : [SHIFT]
-        $this->t128[] = array(1, 1, 3, 1, 4, 1);           //99 : [Cswap]
-        $this->t128[] = array(1, 1, 4, 1, 3, 1);           //100 : [Bswap]
-        $this->t128[] = array(3, 1, 1, 1, 4, 1);           //101 : [Aswap]
-        $this->t128[] = array(4, 1, 1, 1, 3, 1);           //102 : [FNC1]
-        $this->t128[] = array(2, 1, 1, 4, 1, 2);           //103 : [Astart]
-        $this->t128[] = array(2, 1, 1, 2, 1, 4);           //104 : [Bstart]
-        $this->t128[] = array(2, 1, 1, 2, 3, 2);           //105 : [Cstart]
-        $this->t128[] = array(2, 3, 3, 1, 1, 1);           //106 : [STOP]
-        $this->t128[] = array(2, 1);                       //107 : [END BAR]
-        for ($i = 32; $i <= 95; $i++) {   // conjunto de caracteres
+        $this->t128[] = array(2, 1, 2, 2, 2, 2); //0 : [ ]
+        $this->t128[] = array(2, 2, 2, 1, 2, 2); //1 : [!]
+        $this->t128[] = array(2, 2, 2, 2, 2, 1); //2 : ["]
+        $this->t128[] = array(1, 2, 1, 2, 2, 3); //3 : [#]
+        $this->t128[] = array(1, 2, 1, 3, 2, 2); //4 : [$]
+        $this->t128[] = array(1, 3, 1, 2, 2, 2); //5 : [%]
+        $this->t128[] = array(1, 2, 2, 2, 1, 3); //6 : [&]
+        $this->t128[] = array(1, 2, 2, 3, 1, 2); //7 : [']
+        $this->t128[] = array(1, 3, 2, 2, 1, 2); //8 : [(]
+        $this->t128[] = array(2, 2, 1, 2, 1, 3); //9 : [)]
+        $this->t128[] = array(2, 2, 1, 3, 1, 2); //10 : [*]
+        $this->t128[] = array(2, 3, 1, 2, 1, 2); //11 : [+]
+        $this->t128[] = array(1, 1, 2, 2, 3, 2); //12 : [,]
+        $this->t128[] = array(1, 2, 2, 1, 3, 2); //13 : [-]
+        $this->t128[] = array(1, 2, 2, 2, 3, 1); //14 : [.]
+        $this->t128[] = array(1, 1, 3, 2, 2, 2); //15 : [/]
+        $this->t128[] = array(1, 2, 3, 1, 2, 2); //16 : [0]
+        $this->t128[] = array(1, 2, 3, 2, 2, 1); //17 : [1]
+        $this->t128[] = array(2, 2, 3, 2, 1, 1); //18 : [2]
+        $this->t128[] = array(2, 2, 1, 1, 3, 2); //19 : [3]
+        $this->t128[] = array(2, 2, 1, 2, 3, 1); //20 : [4]
+        $this->t128[] = array(2, 1, 3, 2, 1, 2); //21 : [5]
+        $this->t128[] = array(2, 2, 3, 1, 1, 2); //22 : [6]
+        $this->t128[] = array(3, 1, 2, 1, 3, 1); //23 : [7]
+        $this->t128[] = array(3, 1, 1, 2, 2, 2); //24 : [8]
+        $this->t128[] = array(3, 2, 1, 1, 2, 2); //25 : [9]
+        $this->t128[] = array(3, 2, 1, 2, 2, 1); //26 : [:]
+        $this->t128[] = array(3, 1, 2, 2, 1, 2); //27 : [;]
+        $this->t128[] = array(3, 2, 2, 1, 1, 2); //28 : [<]
+        $this->t128[] = array(3, 2, 2, 2, 1, 1); //29 : [=]
+        $this->t128[] = array(2, 1, 2, 1, 2, 3); //30 : [>]
+        $this->t128[] = array(2, 1, 2, 3, 2, 1); //31 : [?]
+        $this->t128[] = array(2, 3, 2, 1, 2, 1); //32 : [@]
+        $this->t128[] = array(1, 1, 1, 3, 2, 3); //33 : [A]
+        $this->t128[] = array(1, 3, 1, 1, 2, 3); //34 : [B]
+        $this->t128[] = array(1, 3, 1, 3, 2, 1); //35 : [C]
+        $this->t128[] = array(1, 1, 2, 3, 1, 3); //36 : [D]
+        $this->t128[] = array(1, 3, 2, 1, 1, 3); //37 : [E]
+        $this->t128[] = array(1, 3, 2, 3, 1, 1); //38 : [F]
+        $this->t128[] = array(2, 1, 1, 3, 1, 3); //39 : [G]
+        $this->t128[] = array(2, 3, 1, 1, 1, 3); //40 : [H]
+        $this->t128[] = array(2, 3, 1, 3, 1, 1); //41 : [I]
+        $this->t128[] = array(1, 1, 2, 1, 3, 3); //42 : [J]
+        $this->t128[] = array(1, 1, 2, 3, 3, 1); //43 : [K]
+        $this->t128[] = array(1, 3, 2, 1, 3, 1); //44 : [L]
+        $this->t128[] = array(1, 1, 3, 1, 2, 3); //45 : [M]
+        $this->t128[] = array(1, 1, 3, 3, 2, 1); //46 : [N]
+        $this->t128[] = array(1, 3, 3, 1, 2, 1); //47 : [O]
+        $this->t128[] = array(3, 1, 3, 1, 2, 1); //48 : [P]
+        $this->t128[] = array(2, 1, 1, 3, 3, 1); //49 : [Q]
+        $this->t128[] = array(2, 3, 1, 1, 3, 1); //50 : [R]
+        $this->t128[] = array(2, 1, 3, 1, 1, 3); //51 : [S]
+        $this->t128[] = array(2, 1, 3, 3, 1, 1); //52 : [T]
+        $this->t128[] = array(2, 1, 3, 1, 3, 1); //53 : [U]
+        $this->t128[] = array(3, 1, 1, 1, 2, 3); //54 : [V]
+        $this->t128[] = array(3, 1, 1, 3, 2, 1); //55 : [W]
+        $this->t128[] = array(3, 3, 1, 1, 2, 1); //56 : [X]
+        $this->t128[] = array(3, 1, 2, 1, 1, 3); //57 : [Y]
+        $this->t128[] = array(3, 1, 2, 3, 1, 1); //58 : [Z]
+        $this->t128[] = array(3, 3, 2, 1, 1, 1); //59 : [[]
+        $this->t128[] = array(3, 1, 4, 1, 1, 1); //60 : [\]
+        $this->t128[] = array(2, 2, 1, 4, 1, 1); //61 : []]
+        $this->t128[] = array(4, 3, 1, 1, 1, 1); //62 : [^]
+        $this->t128[] = array(1, 1, 1, 2, 2, 4); //63 : [_]
+        $this->t128[] = array(1, 1, 1, 4, 2, 2); //64 : [`]
+        $this->t128[] = array(1, 2, 1, 1, 2, 4); //65 : [a]
+        $this->t128[] = array(1, 2, 1, 4, 2, 1); //66 : [b]
+        $this->t128[] = array(1, 4, 1, 1, 2, 2); //67 : [c]
+        $this->t128[] = array(1, 4, 1, 2, 2, 1); //68 : [d]
+        $this->t128[] = array(1, 1, 2, 2, 1, 4); //69 : [e]
+        $this->t128[] = array(1, 1, 2, 4, 1, 2); //70 : [f]
+        $this->t128[] = array(1, 2, 2, 1, 1, 4); //71 : [g]
+        $this->t128[] = array(1, 2, 2, 4, 1, 1); //72 : [h]
+        $this->t128[] = array(1, 4, 2, 1, 1, 2); //73 : [i]
+        $this->t128[] = array(1, 4, 2, 2, 1, 1); //74 : [j]
+        $this->t128[] = array(2, 4, 1, 2, 1, 1); //75 : [k]
+        $this->t128[] = array(2, 2, 1, 1, 1, 4); //76 : [l]
+        $this->t128[] = array(4, 1, 3, 1, 1, 1); //77 : [m]
+        $this->t128[] = array(2, 4, 1, 1, 1, 2); //78 : [n]
+        $this->t128[] = array(1, 3, 4, 1, 1, 1); //79 : [o]
+        $this->t128[] = array(1, 1, 1, 2, 4, 2); //80 : [p]
+        $this->t128[] = array(1, 2, 1, 1, 4, 2); //81 : [q]
+        $this->t128[] = array(1, 2, 1, 2, 4, 1); //82 : [r]
+        $this->t128[] = array(1, 1, 4, 2, 1, 2); //83 : [s]
+        $this->t128[] = array(1, 2, 4, 1, 1, 2); //84 : [t]
+        $this->t128[] = array(1, 2, 4, 2, 1, 1); //85 : [u]
+        $this->t128[] = array(4, 1, 1, 2, 1, 2); //86 : [v]
+        $this->t128[] = array(4, 2, 1, 1, 1, 2); //87 : [w]
+        $this->t128[] = array(4, 2, 1, 2, 1, 1); //88 : [x]
+        $this->t128[] = array(2, 1, 2, 1, 4, 1); //89 : [y]
+        $this->t128[] = array(2, 1, 4, 1, 2, 1); //90 : [z]
+        $this->t128[] = array(4, 1, 2, 1, 2, 1); //91 : [{]
+        $this->t128[] = array(1, 1, 1, 1, 4, 3); //92 : [|]
+        $this->t128[] = array(1, 1, 1, 3, 4, 1); //93 : [}]
+        $this->t128[] = array(1, 3, 1, 1, 4, 1); //94 : [~]
+        $this->t128[] = array(1, 1, 4, 1, 1, 3); //95 : [DEL]
+        $this->t128[] = array(1, 1, 4, 3, 1, 1); //96 : [FNC3]
+        $this->t128[] = array(4, 1, 1, 1, 1, 3); //97 : [FNC2]
+        $this->t128[] = array(4, 1, 1, 3, 1, 1); //98 : [SHIFT]
+        $this->t128[] = array(1, 1, 3, 1, 4, 1); //99 : [Cswap]
+        $this->t128[] = array(1, 1, 4, 1, 3, 1); //100 : [Bswap]
+        $this->t128[] = array(3, 1, 1, 1, 4, 1); //101 : [Aswap]
+        $this->t128[] = array(4, 1, 1, 1, 3, 1); //102 : [FNC1]
+        $this->t128[] = array(2, 1, 1, 4, 1, 2); //103 : [Astart]
+        $this->t128[] = array(2, 1, 1, 2, 1, 4); //104 : [Bstart]
+        $this->t128[] = array(2, 1, 1, 2, 3, 2); //105 : [Cstart]
+        $this->t128[] = array(2, 3, 3, 1, 1, 1); //106 : [STOP]
+        $this->t128[] = array(2, 1); //107 : [END BAR]
+        for ($i = 32; $i <= 95; $i++) { // conjunto de caracteres
             $this->abcSet .= chr($i);
         }
         $this->aSet = $this->abcSet;
@@ -142,7 +165,7 @@ class Pdf extends Fpdf
             $this->abcSet .= chr($i);
             $this->bSet .= chr($i);
         }
-        $this->cSet="0123456789";
+        $this->cSet = "0123456789";
         for ($i = 0; $i < 96; $i++) {
             // convertendo grupos A & B
             if (isset($this->setFrom["A"])) {
@@ -152,7 +175,7 @@ class Pdf extends Fpdf
                 $this->setFrom["B"] .= chr($i + 32);
             }
             if (isset($this->setTo["A"])) {
-                $this->setTo["A"] .= chr(($i < 32) ? $i+64 : $i-32);
+                $this->setTo["A"] .= chr(($i < 32) ? $i + 64 : $i - 32);
             }
             if (isset($this->setTo["A"])) {
                 $this->setTo["B"] .= chr($i);
@@ -165,23 +188,23 @@ class Pdf extends Fpdf
      */
     public function code128($x, $y, $code, $w, $h)
     {
-        $Aguid="";
-        $Bguid="";
-        $Cguid="";
-        for ($i=0; $i < strlen($code); $i++) {
-            $needle=substr($code, $i, 1);
-            $Aguid .= ((strpos($this->aSet, $needle)===false) ? "N" : "O");
-            $Bguid .= ((strpos($this->bSet, $needle)===false) ? "N" : "O");
-            $Cguid .= ((strpos($this->cSet, $needle)===false) ? "N" : "O");
+        $Aguid = "";
+        $Bguid = "";
+        $Cguid = "";
+        for ($i = 0; $i < strlen($code); $i++) {
+            $needle = substr($code, $i, 1);
+            $Aguid .= ((strpos($this->aSet, $needle) === false) ? "N" : "O");
+            $Bguid .= ((strpos($this->bSet, $needle) === false) ? "N" : "O");
+            $Cguid .= ((strpos($this->cSet, $needle) === false) ? "N" : "O");
         }
         $SminiC = "OOOO";
         $IminiC = 4;
         $crypt = "";
         while ($code > "") {
             $i = strpos($Cguid, $SminiC);
-            if ($i!==false) {
-                $Aguid [$i] = "N";
-                $Bguid [$i] = "N";
+            if ($i !== false) {
+                $Aguid[$i] = "N";
+                $Bguid[$i] = "N";
             }
             if (substr($Cguid, 0, $IminiC) == $SminiC) {
                 $crypt .= chr(($crypt > "") ? $this->jSwap["C"] : $this->jStart["C"]);
@@ -189,10 +212,10 @@ class Pdf extends Fpdf
                 if ($made === false) {
                     $made = strlen($Cguid);
                 }
-                if (fmod($made, 2)==1) {
+                if (fmod($made, 2) == 1) {
                     $made--;
                 }
-                for ($i=0; $i < $made; $i += 2) {
+                for ($i = 0; $i < $made; $i += 2) {
                     $crypt .= chr(strval(substr($code, $i, 2)));
                 }
                 $jeu = "C";
@@ -205,8 +228,8 @@ class Pdf extends Fpdf
                 if ($madeB === false) {
                     $madeB = strlen($Bguid);
                 }
-                $made = (($madeA < $madeB) ? $madeB : $madeA );
-                $jeu = (($madeA < $madeB) ? "B" : "A" );
+                $made = (($madeA < $madeB) ? $madeB : $madeA);
+                $jeu = (($madeA < $madeB) ? "B" : "A");
                 $jeuguid = $jeu . "guid";
                 $crypt .= chr(($crypt > "") ? $this->jSwap["$jeu"] : $this->jStart["$jeu"]);
                 $crypt .= strtr(substr($code, 0, $made), $this->setFrom[$jeu], $this->setTo[$jeu]);
@@ -217,18 +240,18 @@ class Pdf extends Fpdf
             $Cguid = substr($Cguid, $made);
         }
         $check = ord($crypt[0]);
-        for ($i=0; $i<strlen($crypt); $i++) {
+        for ($i = 0; $i < strlen($crypt); $i++) {
             $check += (ord($crypt[$i]) * $i);
         }
         $check %= 103;
         $crypt .= chr($check) . chr(106) . chr(107);
         $i = (strlen($crypt) * 11) - 8;
-        $modul = $w/$i;
-        for ($i=0; $i<strlen($crypt); $i++) {
+        $modul = $w / $i;
+        for ($i = 0; $i < strlen($crypt); $i++) {
             $c = $this->t128[ord($crypt[$i])];
-            for ($j=0; $j<count($c); $j++) {
-                $this->Rect($x, $y, $c[$j]*$modul, $h, "F");
-                $x += ($c[$j++]+$c[$j])*$modul;
+            for ($j = 0; $j < count($c); $j++) {
+                $this->Rect($x, $y, $c[$j] * $modul, $h, "F");
+                $x += ($c[$j++] + $c[$j]) * $modul;
             }
         }
     }
@@ -252,11 +275,11 @@ class Pdf extends Fpdf
         }
         $this->angle = $angle;
         if ($angle != 0) {
-            $angle *= M_PI/180;
+            $angle *= M_PI / 180;
             $c = cos($angle);
             $s = sin($angle);
-            $cx =$x*$this->k;
-            $cy = ($this->h-$y)*$this->k;
+            $cx = $x * $this->k;
+            $cy = ($this->h - $y) * $this->k;
             $this->out(
                 sprintf(
                     'q %.5F %.5F %.5F %.5F %.2F %.2F cm 1 0 0 1 %.2F %.2F cm',
@@ -294,40 +317,40 @@ class Pdf extends Fpdf
         } else {
             $op = 'S';
         }
-        $MyArc = 4/3 * (sqrt(2) - 1);
-        $this->out(sprintf('%.2F %.2F m', ($x+$r)*$k, ($hp-$y)*$k));
-        $xc = $x+$w-$r;
-        $yc = $y+$r;
-        $this->out(sprintf('%.2F %.2F l', $xc*$k, ($hp-$y)*$k));
-        if (strpos($corners, '2')===false) {
-            $this->out(sprintf('%.2F %.2F l', ($x+$w)*$k, ($hp-$y)*$k));
+        $MyArc = 4 / 3 * (sqrt(2) - 1);
+        $this->out(sprintf('%.2F %.2F m', ($x + $r) * $k, ($hp - $y) * $k));
+        $xc = $x + $w - $r;
+        $yc = $y + $r;
+        $this->out(sprintf('%.2F %.2F l', $xc * $k, ($hp - $y) * $k));
+        if (strpos($corners, '2') === false) {
+            $this->out(sprintf('%.2F %.2F l', ($x + $w) * $k, ($hp - $y) * $k));
         } else {
-            $this->arc($xc + $r*$MyArc, $yc - $r, $xc + $r, $yc - $r*$MyArc, $xc + $r, $yc);
+            $this->arc($xc + $r * $MyArc, $yc - $r, $xc + $r, $yc - $r * $MyArc, $xc + $r, $yc);
         }
-        $xc = $x+$w-$r;
-        $yc = $y+$h-$r;
-        $this->out(sprintf('%.2F %.2F l', ($x+$w)*$k, ($hp-$yc)*$k));
-        if (strpos($corners, '3')===false) {
-            $this->out(sprintf('%.2F %.2F l', ($x+$w)*$k, ($hp-($y+$h))*$k));
+        $xc = $x + $w - $r;
+        $yc = $y + $h - $r;
+        $this->out(sprintf('%.2F %.2F l', ($x + $w) * $k, ($hp - $yc) * $k));
+        if (strpos($corners, '3') === false) {
+            $this->out(sprintf('%.2F %.2F l', ($x + $w) * $k, ($hp - ($y + $h)) * $k));
         } else {
-            $this->arc($xc + $r, $yc + $r*$MyArc, $xc + $r*$MyArc, $yc + $r, $xc, $yc + $r);
+            $this->arc($xc + $r, $yc + $r * $MyArc, $xc + $r * $MyArc, $yc + $r, $xc, $yc + $r);
         }
-        $xc = $x+$r;
-        $yc = $y+$h-$r;
-        $this->out(sprintf('%.2F %.2F l', $xc*$k, ($hp-($y+$h))*$k));
-        if (strpos($corners, '4')===false) {
-            $this->out(sprintf('%.2F %.2F l', ($x)*$k, ($hp-($y+$h))*$k));
+        $xc = $x + $r;
+        $yc = $y + $h - $r;
+        $this->out(sprintf('%.2F %.2F l', $xc * $k, ($hp - ($y + $h)) * $k));
+        if (strpos($corners, '4') === false) {
+            $this->out(sprintf('%.2F %.2F l', ($x) * $k, ($hp - ($y + $h)) * $k));
         } else {
-            $this->arc($xc - $r*$MyArc, $yc + $r, $xc - $r, $yc + $r*$MyArc, $xc - $r, $yc);
+            $this->arc($xc - $r * $MyArc, $yc + $r, $xc - $r, $yc + $r * $MyArc, $xc - $r, $yc);
         }
-        $xc = $x+$r ;
-        $yc = $y+$r;
-        $this->out(sprintf('%.2F %.2F l', ($x)*$k, ($hp-$yc)*$k));
-        if (strpos($corners, '1')===false) {
-            $this->out(sprintf('%.2F %.2F l', ($x)*$k, ($hp-$y)*$k));
-            $this->out(sprintf('%.2F %.2F l', ($x+$r)*$k, ($hp-$y)*$k));
+        $xc = $x + $r;
+        $yc = $y + $r;
+        $this->out(sprintf('%.2F %.2F l', ($x) * $k, ($hp - $yc) * $k));
+        if (strpos($corners, '1') === false) {
+            $this->out(sprintf('%.2F %.2F l', ($x) * $k, ($hp - $y) * $k));
+            $this->out(sprintf('%.2F %.2F l', ($x + $r) * $k, ($hp - $y) * $k));
         } else {
-            $this->arc($xc - $r, $yc - $r*$MyArc, $xc - $r*$MyArc, $yc - $r, $xc, $yc - $r);
+            $this->arc($xc - $r, $yc - $r * $MyArc, $xc - $r * $MyArc, $yc - $r, $xc, $yc - $r);
         }
         $this->out($op);
     }
@@ -347,12 +370,12 @@ class Pdf extends Fpdf
         $this->out(
             sprintf(
                 '%.2F %.2F %.2F %.2F %.2F %.2F c ',
-                $x1*$this->k,
-                ($h-$y1)*$this->k,
-                $x2*$this->k,
-                ($h-$y2)*$this->k,
-                $x3*$this->k,
-                ($h-$y3)*$this->k
+                $x1 * $this->k,
+                ($h - $y1) * $this->k,
+                $x2 * $this->k,
+                ($h - $y2) * $this->k,
+                $x3 * $this->k,
+                ($h - $y3) * $this->k
             )
         );
     }
@@ -369,26 +392,26 @@ class Pdf extends Fpdf
     public function dashedRect($x1, $y1, $x2, $y2, $width = 1, $nb = 15)
     {
         $this->setLineWidth($width);
-        $longueur = abs($x1-$x2);
-        $hauteur = abs($y1-$y2);
+        $longueur = abs($x1 - $x2);
+        $hauteur = abs($y1 - $y2);
         if ($longueur > $hauteur) {
-            $Pointilles = ($longueur/$nb)/2;
+            $Pointilles = ($longueur / $nb) / 2;
         } else {
-            $Pointilles = ($hauteur/$nb)/2;
+            $Pointilles = ($hauteur / $nb) / 2;
         }
-        for ($i=$x1; $i<=$x2; $i+=$Pointilles+$Pointilles) {
-            for ($j=$i; $j<=($i+$Pointilles); $j++) {
-                if ($j<=($x2-1)) {
-                    $this->line($j, $y1, $j+1, $y1);
-                    $this->line($j, $y2, $j+1, $y2);
+        for ($i = $x1; $i <= $x2; $i += $Pointilles + $Pointilles) {
+            for ($j = $i; $j <= ($i + $Pointilles); $j++) {
+                if ($j <= ($x2 - 1)) {
+                    $this->line($j, $y1, $j + 1, $y1);
+                    $this->line($j, $y2, $j + 1, $y2);
                 }
             }
         }
-        for ($i=$y1; $i<=$y2; $i+=$Pointilles+$Pointilles) {
-            for ($j=$i; $j<=($i+$Pointilles); $j++) {
-                if ($j<=($y2-1)) {
-                    $this->line($x1, $j, $x1, $j+1);
-                    $this->line($x2, $j, $x2, $j+1);
+        for ($i = $y1; $i <= $y2; $i += $Pointilles + $Pointilles) {
+            for ($j = $i; $j <= ($i + $Pointilles); $j++) {
+                if ($j <= ($y2 - 1)) {
+                    $this->line($x1, $j, $x1, $j + 1);
+                    $this->line($x2, $j, $x2, $j + 1);
                 }
             }
         }
@@ -409,16 +432,16 @@ class Pdf extends Fpdf
         $yi = $this->getY();
         $hrow = $this->fontSize;
         $textrows = $this->drawRows($w, $hrow, $strText, 0, $align, 0, 0, 0);
-        $maxrows = floor($h/$this->fontSize);
+        $maxrows = floor($h / $this->fontSize);
         $rows = min($textrows, $maxrows);
         $dy = 0;
         if (strtoupper($valign) == 'M') {
-            $dy = ($h-$rows*$this->fontSize)/2;
+            $dy = ($h - $rows * $this->fontSize) / 2;
         }
         if (strtoupper($valign) == 'B') {
-            $dy = $h-$rows*$this->fontSize;
+            $dy = $h - $rows * $this->fontSize;
         }
-        $this->setY($yi+$dy);
+        $this->setY($yi + $dy);
         $this->setX($xi);
         $this->drawRows($w, $hrow, $strText, 0, $align, false, $rows, 1);
         if ($border) {
@@ -442,15 +465,15 @@ class Pdf extends Fpdf
     {
         $cw =& $this->currentFont['cw'];
         if ($w == 0) {
-            $w = $this->w-$this->rMargin-$this->x;
+            $w = $this->w - $this->rMargin - $this->x;
         }
-        $wmax = ($w-2*$this->cMargin)*1000/$this->fontSize;
+        $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->fontSize;
         $s = str_replace("\r", '', $txt);
         $nb = strlen($s);
-        if ($nb > 0 && $s[$nb-1] == "\n") {
+        if ($nb > 0 && $s[$nb - 1] == "\n") {
             $nb--;
         }
-        $b=0;
+        $b = 0;
         if ($border) {
             if ($border == 1) {
                 $border = 'LTRB';
@@ -464,7 +487,7 @@ class Pdf extends Fpdf
                 if (is_int(strpos($border, 'R'))) {
                     $b2 .= 'R';
                 }
-                $b = is_int(strpos($border, 'T')) ? $b2.'T' : $b2;
+                $b = is_int(strpos($border, 'T')) ? $b2 . 'T' : $b2;
             }
         }
         $sep = -1;
@@ -483,7 +506,7 @@ class Pdf extends Fpdf
                     }
                 }
                 if ($prn == 1) {
-                    $this->cell($w, $h, substr($s, $j, $i-$j), $b, 2, $align, $fill);
+                    $this->cell($w, $h, substr($s, $j, $i - $j), $b, 2, $align, $fill);
                 }
                 $i++;
                 $sep = -1;
@@ -517,19 +540,19 @@ class Pdf extends Fpdf
                         }
                     }
                     if ($prn == 1) {
-                        $this->cell($w, $h, substr($s, $j, $i-$j), $b, 2, $align, $fill);
+                        $this->cell($w, $h, substr($s, $j, $i - $j), $b, 2, $align, $fill);
                     }
                 } else {
                     if ($align == 'J') {
-                        $this->ws = ($ns>1) ? ($wmax-$ls)/1000*$this->FontSize/($ns-1) : 0;
+                        $this->ws = ($ns > 1) ? ($wmax - $ls) / 1000 * $this->FontSize / ($ns - 1) : 0;
                         if ($prn == 1) {
-                            $this->out(sprintf('%.3F Tw', $this->ws*$this->k));
+                            $this->out(sprintf('%.3F Tw', $this->ws * $this->k));
                         }
                     }
                     if ($prn == 1) {
-                        $this->cell($w, $h, substr($s, $j, $sep-$j), $b, 2, $align, $fill);
+                        $this->cell($w, $h, substr($s, $j, $sep - $j), $b, 2, $align, $fill);
                     }
-                    $i = $sep+1;
+                    $i = $sep + 1;
                 }
                 $sep = -1;
                 $j = $i;
@@ -556,7 +579,7 @@ class Pdf extends Fpdf
             $b .= 'B';
         }
         if ($prn == 1) {
-            $this->cell($w, $h, substr($s, $j, $i-$j), $b, 2, $align, $fill);
+            $this->cell($w, $h, substr($s, $j, $i - $j), $b, 2, $align, $fill);
         }
         $this->x = $this->lMargin;
         return $nl;
@@ -585,14 +608,14 @@ class Pdf extends Fpdf
                 $wordwidth = $this->getStringWidth($word);
                 if ($wordwidth > $maxwidth) {
                     // Word is too long, we cut it
-                    for ($i=0; $i < strlen($word); $i++) {
+                    for ($i = 0; $i < strlen($word); $i++) {
                         $wordwidth = $this->getStringWidth(substr($word, $i, 1));
                         if ($width + $wordwidth <= $maxwidth) {
                             $width += $wordwidth;
                             $text .= substr($word, $i, 1);
                         } else {
                             $width = $wordwidth;
-                            $text = rtrim($text)."\n".substr($word, $i, 1);
+                            $text = rtrim($text) . "\n" . substr($word, $i, 1);
                             $count++;
                         }
                     }
@@ -605,7 +628,7 @@ class Pdf extends Fpdf
                     $count++;
                 }
             }
-            $text = rtrim($text)."\n";
+            $text = rtrim($text) . "\n";
             $count++;
         }
         $text = rtrim($text);
@@ -637,21 +660,21 @@ class Pdf extends Fpdf
         $scale = false,
         $force = true
     ) {
-        $str_width=$this->getStringWidth($txt);
+        $str_width = $this->getStringWidth($txt);
         if ($w == 0) {
-            $w = $this->w-$this->rMargin-$this->x;
+            $w = $this->w - $this->rMargin - $this->x;
         }
-        $ratio = ($w-$this->cMargin*2)/$str_width;
+        $ratio = ($w - $this->cMargin * 2) / $str_width;
         $fit = ($ratio < 1 || ($ratio > 1 && $force));
         if ($fit) {
             if ($scale) {
                 //Calcula a escala horizontal
-                $horiz_scale = $ratio*100.0;
+                $horiz_scale = $ratio * 100.0;
                 //Ajusta a escala horizontal
                 $this->out(sprintf('BT %.2F Tz ET', $horiz_scale));
             } else {
                 //Calcula o espaçamento de caracteres em pontos
-                $char_space = ($w-$this->cMargin*2-$str_width)/max($this->_MBGetStringLength($txt)-1, 1)*$this->k;
+                $char_space = ($w - $this->cMargin * 2 - $str_width) / max($this->_MBGetStringLength($txt) - 1, 1) * $this->k;
                 //Ajusta o espaçamento de caracteres
                 $this->out(sprintf('BT %.2F Tc ET', $char_space));
             }
@@ -662,7 +685,7 @@ class Pdf extends Fpdf
         $this->cell($w, $h, $txt, $border, $ln, $align, $fill, $link);
         //Reseta o espaçamento de caracteres e a escala horizontal
         if ($fit) {
-            $this->out('BT '.($scale ? '100 Tz' : '0 Tc').' ET');
+            $this->out('BT ' . ($scale ? '100 Tz' : '0 Tc') . ' ET');
         }
     }
 
@@ -757,7 +780,7 @@ class Pdf extends Fpdf
             $len = 0;
             $nbbytes = strlen($s);
             for ($i = 0; $i < $nbbytes; $i++) {
-                if (ord($s[$i])<128) {
+                if (ord($s[$i]) < 128) {
                     $len++;
                 } else {
                     $len++;
@@ -783,29 +806,29 @@ class Pdf extends Fpdf
     {
         $this->setDrawColor(110);
         $this->setLineWidth($h);
-        $wDash = ($w/$n)/2;
-        for ($i=$x; $i<=$x+$w; $i += $wDash+$wDash) {
-            for ($j=$i; $j<= ($i+$wDash); $j++) {
-                if ($j <= ($x+$w-1)) {
-                    $this->line($j, $y, $j+1, $y);
+        $wDash = ($w / $n) / 2;
+        for ($i = $x; $i <= $x + $w; $i += $wDash + $wDash) {
+            for ($j = $i; $j <= ($i + $wDash); $j++) {
+                if ($j <= ($x + $w - 1)) {
+                    $this->line($j, $y, $j + 1, $y);
                 }
             }
         }
         $this->setDrawColor(0);
     }
 
-   /**
-    * Desenha uma linha vertical tracejada com o FPDF
-    * @param   number $x      Posição horizontal inicial, em mm
-    * @param   number $y      Posição vertical inicial, em mm
-    * @param   number $w      Espessura da linha, em mm
-    * @param   number $yfinal posição final
-    * @param   number $n      Numero de traços na seção da linha com o comprimento $w
-    * @return  none
-    */
+    /**
+     * Desenha uma linha vertical tracejada com o FPDF
+     * @param   number $x      Posição horizontal inicial, em mm
+     * @param   number $y      Posição vertical inicial, em mm
+     * @param   number $w      Espessura da linha, em mm
+     * @param   number $yfinal posição final
+     * @param   number $n      Numero de traços na seção da linha com o comprimento $w
+     * @return  none
+     */
     public function dashedVLine($x, $y, $w, $yfinal, $n)
     {
-        $this->setDrawColor(150,150,150);
+        $this->setDrawColor(150, 150, 150);
         $this->setLineWidth($w);
         if ($y > $yfinal) {
             $aux = $yfinal;
@@ -813,7 +836,7 @@ class Pdf extends Fpdf
             $y = $aux;
         }
         while ($y < $yfinal && $n > 0) {
-            $this->line($x, $y, $x, $y+1);
+            $this->line($x, $y, $x, $y + 1);
             $y += 3;
             $n--;
         }
@@ -892,7 +915,8 @@ class Pdf extends Fpdf
             //remover espaços desnecessários
             $text = trim($text);
             //converter o charset para o fpdf
-            $text = mb_convert_encoding($text, 'UTF-8', mb_detect_encoding($text));
+            $text = Encoding::toISO8859($text);
+
             //decodifica os caracteres html no xml
             $text = html_entity_decode($text);
         } else {
@@ -1033,7 +1057,8 @@ class Pdf extends Fpdf
             //remover espaços desnecessários
             $text = trim($text);
             //converter o charset para o fpdf
-            $text = mb_convert_encoding($text, 'UTF-8', mb_detect_encoding($text));
+            $text = Encoding::toISO8859($text);
+
             //decodifica os caracteres html no xml
             $text = html_entity_decode($text);
         } else {
